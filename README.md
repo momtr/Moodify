@@ -14,8 +14,8 @@ We want to create a webapplication which uses the Spotify Web API to recommend s
 Cien, Alex, Moritz 
 
 ## Setup
-- 'Server': glitch.me 
-- 'Code': github (Branch Glitch!!!)
+- `Server`: glitch.me 
+- `Code`: github (Branch Glitch!!!)
 
 ## Technology
 - React.js (frontend; bit library)
