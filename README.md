@@ -1,7 +1,7 @@
 # Moodify
 
-Welcome to our web app ;)
-🎉🎈💿🎵🎶
+Welcome to our web app ;) <br />
+🎉💿🎵🤪😉🙂😕☹️😣
 
 ## Topic - Moodify
 We want to create a webapplication which uses the Spotify Web API to recommend songs based on the users mood which he states when opening the page as well as implementing a mood diagram based on the users "mood history".
