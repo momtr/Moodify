@@ -17,8 +17,8 @@ const scopes = "user-read-private user-read-email";
 
 /*
  *  Here we inititalize express, app, https and request
- *  we need a few npm packages: express for the API, 
- *  https for https traffic 
+ *  we need a few npm packages: express for the API,
+ *  https for https traffic
  *  and request for making HTTP requests (GET, POST, PUT, DELETE, ..) and
  *  querystring for constructing URL parameter strings
  */
@@ -26,13 +26,15 @@ const express = require("express");
 const app = express();
 const https = require("https");
 const request = require("request");
-const querystring = require('querystring');
+const querystring = require("querystring");
+const cookieParser = require("cookie-parser");
 
 // =================================================================
 // HTTP REQUESTS
 
-// we want to use a static folder (pubic) that is sent to the client
+// we want to use a static folder (public) that is sent to the client
 app.use(express.static("public"));
+app.use(cookieParser());
 
 /*
  *  here we handle GET requests to / (root: https://moodify2.glitch.me/)
@@ -42,19 +44,19 @@ app.use(express.static("public"));
  *  then spotify redirects the user to endpoint /auth
  */
 app.get("/", function(req, res) {
-  
   let state = generateRandomString(16);
-  res.cookie('spotify_auth_state', state);
-  
-  res.redirect('https://accounts.spotify.com/authorize?' +
-    querystring.stringify({
-      response_type: 'code',
-      client_id: client_id,
-      scope: scopes,
-      redirect_uri: redirect_uri,
-      state: state
-    }));
-  
+  res.cookie("spotify_auth_state", state);
+
+  res.redirect(
+    "https://accounts.spotify.com/authorize?" +
+      querystring.stringify({
+        response_type: "code",
+        client_id: client_id,
+        scope: scopes,
+        redirect_uri: redirect_uri
+        // state: state
+      })
+  );
 });
 
 /*
@@ -69,67 +71,70 @@ app.get("/", function(req, res) {
  *    - send GET request to API endpoint in order to get client's object (in JSON format)
  */
 app.get("/auth", function(req, res) {
-  
   // (1) get the user's client code
   let code = req.query.code || null;
-  
+
+  console.log("code: " + code);
+
+  if (!code) {
+    console.log("code is not there!");
+    sendResponseMessage(res, 10001, "Code is not given");
+    return;
+  }
+
   // (2) get the user's credentials from the API
   let authOptions = {
-      url: 'https://accounts.spotify.com/api/token',
-      form: {
-        code: code,
-        redirect_uri: redirect_uri,
-        grant_type: 'authorization_code'
-      },
-      headers: {
-        'Authorization': 'Basic ' + (new Buffer(client_id + ':' + client_secret).toString('base64'))
-      },
-      json: true
+    url: "https://accounts.spotify.com/api/token",
+    form: {
+      code: code, //user id
+      redirect_uri: redirect_uri,
+      grant_type: "authorization_code"
+    },
+    headers: {
+      Authorization:
+        "Basic " +
+        new Buffer(client_id + ":" + client_secret).toString("base64")
+    },
+    json: true
   };
-  
+
   request.post(authOptions, function(error, response, body) {
-      if (!error && response.statusCode === 200) {
+    if (!error && response.statusCode === 200) {
+      let access_token = body.access_token,
+        refresh_token = body.refresh_token;
 
-        let access_token = body.access_token,
-            refresh_token = body.refresh_token;
+      // use the access token to access the Spotify Web API
+      console.log("user: " + body.display_name);
+      res.cookie("access_token", access_token);
+      res.cookie("refresh_token", refresh_token);
+      res.redirect("/users");
+    } else {
+      console.log("error occured: ", error);
+      console.log("status code of response: " + response.statusCode);
+    }
+  });
 
-        var options = {
-          url: 'https://api.spotify.com/v1/me',
-          headers: { 
-            'Authorization': 'Bearer ' + access_token 
-          },
-          json: true
-        };
-
-        // use the access token to access the Spotify Web API
-        request.get(options, function(error, response, body) {
-          console.log("new user: ", body);
-          
-          // pass parameters also over to the browser
-          res.redirect('/' + 
-            body.display_name || 'no_user'+ 
-            querystring.stringify({
-                access_token: access_token,
-                refresh_token: refresh_token
-            }));
-          
-        });
-
-      } else {
-        res.redirect('/#' +
-          querystring.stringify({
-            error: 'invalid_token'
-          }));
-      }
-    });
-  
-  res.send("<h1 style='font-family: sans-serif'>Success!</h1>");
-  
+  // res.send("<h1 style='font-family: sans-serif'>Success!</h1>");
 });
 
-app.get('/:display_name', function(res, req) {
-  res.send(res.params.display_name);
-})
+app.get("/users", function(req, res) {
+  let access_token = req.cookies.access_token;
+  let refresh_token = req.cookies.refresh_token;
+  // get the user from the spotify API
+  var options = {
+    url: "https://api.spotify.com/v1/me",
+    headers: {
+      Authorization: "Bearer " + access_token
+    },
+    json: true
+  };
+
+  // use the access token to access the Spotify Web API
+  request.get(options, function(error, response, body) {
+    console.log(body.images[0]);
+    res.send('<img src="' + body.images[0].url + '">');
+  });
+});
 
 // =================================================================
 
@@ -147,11 +152,31 @@ const listener = app.listen(process.env.PORT, function() {
  * @param  {number} length The length of the string
  * @return {string} The generated string
  */
-var generateRandomString = function(length) {
-  let text = '';
-  let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+function generateRandomString(length) {
+  let text = "";
+  let possible =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   for (let i = 0; i < length; i++) {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
   return text;
-};
+}
+
+/**
+ * Sends a response to the specified res parameter
+ * @param  {Object} res The response object
+ * @param {number} status The status code (e.g. 200 for OK)
+ * @param {string} message the message being sent
+ * @return {Object} data Additional parameter. The data that should be sent
+ */
+function sendResponseMessage(res, status, message, data) {
+  if (status && message) {
+    res.send(
+      JSON.stringify({
+        status: status,
+        message: message,
+        data: data
+      })
+    );
+  }
+}
