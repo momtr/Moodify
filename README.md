@@ -18,7 +18,7 @@ Cien, Alex, Moritz
 - `Code`: github (Branch Glitch!!!)
 
 ## Technology
-- React.js (frontend; bit library)
+- React.js (frontend; grommet library)
 - Node.js using express (backend)
 - MySQL database
 - Spotify API (interface)
